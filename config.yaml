@@ -1,0 +1,275 @@
+# Application Configuration
+app:
+  name: "Enterprise Document Q&A System"
+  version: "1.0.0"
+  description: "RAG-based document Q&A using Azure AI Foundry and Azure AI Search"
+
+# Document Processing
+document_processing:
+  supported_formats:
+    - pdf
+    - docx
+    - txt
+    - md
+    - html
+  
+  chunking:
+    strategy: "recursive"  # recursive, fixed, semantic
+    chunk_size: 1000
+    chunk_overlap: 200
+    separators:
+      - "\n\n"
+      - "\n"
+      - " "
+      - ""
+  
+  metadata:
+    extract_title: true
+    extract_author: true
+    extract_date: true
+    extract_keywords: true
+
+# Azure AI Search Index Schema
+search_index:
+  name: "enterprise-docs-index"
+  
+  fields:
+    - name: "id"
+      type: "Edm.String"
+      key: true
+      searchable: false
+    
+    - name: "content"
+      type: "Edm.String"
+      searchable: true
+      analyzer: "en.microsoft"
+    
+    - name: "content_vector"
+      type: "Collection(Edm.Single)"
+      searchable: true
+      dimensions: 1536
+      vector_search_profile: "vector-profile"
+    
+    - name: "title"
+      type: "Edm.String"
+      searchable: true
+      filterable: true
+    
+    - name: "source_file"
+      type: "Edm.String"
+      filterable: true
+      facetable: true
+    
+    - name: "page_number"
+      type: "Edm.Int32"
+      filterable: true
+    
+    - name: "chunk_id"
+      type: "Edm.Int32"
+      filterable: true
+    
+    - name: "created_at"
+      type: "Edm.DateTimeOffset"
+      filterable: true
+      sortable: true
+    
+    - name: "metadata"
+      type: "Edm.String"
+      searchable: false
+  
+  vector_search:
+    algorithm: "hnsw"
+    metric: "cosine"
+    parameters:
+      m: 4
+      ef_construction: 400
+      ef_search: 500
+  
+  semantic_config:
+    name: "semantic-config"
+    prioritized_fields:
+      title_field: "title"
+      content_fields:
+        - "content"
+
+# Retrieval Configuration
+retrieval:
+  search_type: "hybrid"  # hybrid, vector, keyword
+  top_k: 5
+  
+  # Hybrid search weights
+  hybrid_weights:
+    vector_weight: 0.6
+    keyword_weight: 0.4
+  
+  # Filtering
+  filters:
+    enabled: true
+    filter_by_date: false
+    filter_by_source: false
+  
+  # Re-ranking
+  rerank:
+    enabled: true
+    model: "cross-encoder"
+    top_n: 3
+
+# LLM Configuration
+llm:
+  provider: "azure_openai"
+  model: "gpt-4o"
+  temperature: 0.7
+  max_tokens: 1000
+  top_p: 0.95
+  frequency_penalty: 0.0
+  presence_penalty: 0.0
+  
+  # Streaming
+  stream: false
+  
+  # Safety settings
+  content_filter: true
+  
+# Embedding Configuration
+embedding:
+  provider: "azure_openai"
+  model: "text-embedding-ada-002"
+  dimensions: 1536
+  batch_size: 16
+  
+  # Caching
+  cache_embeddings: true
+  cache_ttl: 3600  # seconds
+
+# Prompt Templates
+prompts:
+  system_prompt: |
+    You are an intelligent assistant helping users find information from enterprise documents.
+    Your role is to:
+    1. Provide accurate, concise answers based ONLY on the provided context
+    2. Cite sources by mentioning the document name and page number
+    3. If the answer is not in the context, clearly state "I don't have enough information to answer that question"
+    4. Be professional and helpful
+    5. Format answers clearly with proper structure
+  
+  rag_prompt: |
+    Context from enterprise documents:
+    {context}
+    
+    Question: {question}
+    
+    Instructions:
+    - Answer the question using ONLY the information from the context above
+    - Include citations (document name and page number) for each piece of information
+    - If the context doesn't contain the answer, say so clearly
+    - Be concise but comprehensive
+    
+    Answer:
+  
+  no_context_prompt: |
+    I apologize, but I couldn't find relevant information in the available documents to answer your question: "{question}"
+    
+    You might want to:
+    - Rephrase your question
+    - Check if the relevant documents have been uploaded
+    - Contact the document administrator for additional resources
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "json"
+  
+  outputs:
+    console: true
+    file: true
+    file_path: "logs/app.log"
+  
+  # What to log
+  log_queries: true
+  log_responses: true
+  log_errors: true
+  log_metrics: true
+
+# Monitoring & Telemetry
+monitoring:
+  enabled: true
+  
+  metrics:
+    - query_count
+    - average_latency
+    - token_usage
+    - error_rate
+    - relevance_score
+  
+  # Application Insights (optional)
+  app_insights:
+    enabled: false
+    connection_string: ""
+
+# Security
+security:
+  # Authentication
+  require_auth: false
+  auth_type: "azure_ad"  # azure_ad, api_key, none
+  
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+  
+  # Input validation
+  max_query_length: 500
+  allowed_file_types:
+    - pdf
+    - docx
+    - txt
+    - md
+
+# Cache Configuration
+cache:
+  enabled: true
+  backend: "memory"  # memory, redis
+  ttl: 3600
+  max_size: 1000
+  
+  # What to cache
+  cache_embeddings: true
+  cache_search_results: true
+  cache_llm_responses: false
+
+# Performance Optimization
+performance:
+  # Async processing
+  async_mode: true
+  max_concurrent_requests: 10
+  
+  # Batch processing
+  batch_size: 16
+  
+  # Timeout settings
+  search_timeout: 10
+  llm_timeout: 30
+  embedding_timeout: 15
+
+# UI Configuration (Streamlit)
+ui:
+  theme: "light"
+  page_title: "Enterprise Document Q&A"
+  page_icon: "📚"
+  
+  # Features
+  show_sources: true
+  show_confidence: true
+  show_token_usage: true
+  enable_feedback: true
+  
+  # Chat settings
+  max_chat_history: 10
+  clear_history_on_new_session: false
+
+# Development Settings
+development:
+  debug: false
+  reload: true
+  mock_llm: false
+  sample_responses: false
